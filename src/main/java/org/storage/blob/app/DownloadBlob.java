@@ -21,7 +21,7 @@ import java.util.stream.IntStream;
 
 public class DownloadBlob {
 
-    public static final int DOWNLOAD_ATTEMPTS = 100;
+    public static final int DOWNLOAD_ATTEMPTS = 10000;
 
     public static void main(String[] args) throws IOException, NoSuchAlgorithmException {
 
