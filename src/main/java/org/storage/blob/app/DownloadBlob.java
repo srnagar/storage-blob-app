@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
 public class DownloadBlob {
@@ -23,6 +24,10 @@ public class DownloadBlob {
     public static final int DOWNLOAD_ATTEMPTS = 100;
 
     public static void main(String[] args) throws IOException, NoSuchAlgorithmException {
+
+        AtomicInteger errorCount = new AtomicInteger();
+        AtomicInteger mismatchCount = new AtomicInteger();
+        AtomicInteger totalCount = new AtomicInteger();
         File uploadToFile = new File("file-to-upload");
 
         MessageDigest uploadMessageDigest = MessageDigest.getInstance("MD5");
@@ -45,19 +50,27 @@ public class DownloadBlob {
                     try {
                         File downloadFile = new File("test-download-" + i);
                         blobClient.downloadToFile(downloadFile.getAbsolutePath(), true);
+
                         MessageDigest downloadMessageDigest = MessageDigest.getInstance("MD5");
                         downloadMessageDigest.update(Files.readAllBytes(downloadFile.toPath()));
                         byte[] downloadDigest = downloadMessageDigest.digest();
                         BigInteger downloadBigInt = new BigInteger(1, downloadDigest);
                         String downloadMd5 = downloadBigInt.toString(16);
-                        System.out.println("Downloaded file md5: " + downloadMd5);
+
                         if (!uploadMd5.equals(downloadMd5)) {
-                            System.out.println("Upload and download files md5 do not match " + uploadMd5 + " " + downloadMd5);
+                            System.out.println("MD5 mismatch for file " + downloadFile.getName() + ": Upload md5 " + uploadMd5 + "; download md5 " + downloadMd5);
+                            mismatchCount.incrementAndGet();
                         }
                     } catch (Exception e) {
-                        throw new RuntimeException(e);
+                        errorCount.incrementAndGet();
+                    }
+
+                    int totalDownloads = totalCount.incrementAndGet();
+                    if (totalDownloads % 10 == 0) {
+                        System.out.println("Completed downloads: " + totalDownloads );
                     }
                 });
+        System.out.println("Total download errors " + errorCount.get() + "; total md5 mismatch: " + mismatchCount.get());
     }
 
     private static BlobClient setup(File file, byte[] digest) {
